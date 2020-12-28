@@ -1,4 +1,4 @@
-package tcp
+package stormbringer
 
 import (
 	"encoding/json"

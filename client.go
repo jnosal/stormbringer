@@ -1,4 +1,4 @@
-package tcp
+package stormbringer
 
 import (
 	"log"
@@ -17,12 +17,12 @@ type TCPClient struct {
 
 func (client *TCPClient) Connect() {
 	connection, err := net.DialTimeout("tcp", client.address, time.Duration(CONNECTION_TIMEOUT)*time.Second)
-	client.connection = connection
-
 	if err != nil {
-		log.Printf("Cannot connect to TCP server at: %s", client.address)
+		log.Fatalf("Cannot connect to TCP server at: %s", client.address)
 		return
 	}
+
+	client.connection = connection
 }
 
 func (client *TCPClient) Close() {
@@ -32,8 +32,16 @@ func (client *TCPClient) Close() {
 func (client *TCPClient) Send(message map[string]interface{}) {
 	tcpMessage := NewTCPMessageFromMap(message)
 
-	client.connection.Write(tcpMessage.payload)
-	client.connection.Write([]byte("\n"))
+	_, err := client.connection.Write(tcpMessage.payload)
+	if err != nil {
+		log.Printf(err.Error())
+		return
+	}
+	_, err = client.connection.Write([]byte("\n"))
+	if err != nil {
+		log.Printf(err.Error())
+		return
+	}
 }
 
 func NewTCPClient(address string) (client *TCPClient) {

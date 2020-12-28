@@ -1,4 +1,4 @@
-package tcp
+package stormbringer
 
 import (
 	"bufio"
@@ -55,14 +55,21 @@ func (server *TCPServer) handleConnection(conn net.Conn) {
 }
 
 func (server *TCPServer) Start() {
-	listener, err := net.Listen("tcp", server.address)
-	server.listener = listener
-
-	defer listener.Close()
+	_, err := net.ResolveTCPAddr("tcp4", server.address)
 	if err != nil {
 		log.Printf("Cannot start TCP server at: %s", server.address)
 		return
 	}
+
+	listener, err := net.Listen("tcp", server.address)
+	if err != nil {
+		log.Printf("Cannot start TCP server at: %s", server.address)
+		return
+	}
+
+	server.listener = listener
+
+	defer listener.Close()
 
 	go server.handleMessages()
 
@@ -73,6 +80,7 @@ func (server *TCPServer) Start() {
 
 		if err != nil {
 			log.Print(err.Error())
+			continue
 		}
 
 		go server.handleConnection(conn)
