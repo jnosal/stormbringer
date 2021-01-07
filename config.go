@@ -1,7 +1,10 @@
 package stormbringer
 
 import (
+	"encoding/json"
 	"flag"
+	"log"
+	"os"
 )
 
 var (
@@ -23,4 +26,26 @@ func ConfigFromFlags() Config {
 		MasterIp:   *fMasterIp,
 		Port:       *fPort,
 	}
+}
+
+func ConfigFromFile(fileName string) Config {
+	var c Config
+	f, err := os.Open(fileName)
+	if err != nil {
+		log.Fatal("unable to read configuration", err)
+	}
+	defer f.Close()
+	err = json.NewDecoder(f).Decode(&c)
+	if err != nil {
+		log.Fatal("unable to decode configuration", err)
+	}
+	return c
+}
+
+func GetEnv(key, absentValue string) string {
+	v := os.Getenv(key)
+	if len(v) == 0 {
+		return absentValue
+	}
+	return v
 }
