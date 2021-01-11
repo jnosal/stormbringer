@@ -22,6 +22,8 @@ func (client *TCPClient) Connect() {
 		return
 	}
 
+	log.Printf("Conected to TCP server: %s", client.address)
+
 	client.connection = connection
 }
 

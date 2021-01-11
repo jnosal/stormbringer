@@ -8,21 +8,36 @@ import (
 )
 
 var (
-	fMakeMaster = flag.Bool("master", false, "make this node master if unable to connect to the cluster ip provided.")
+	fMakeMaster = flag.Bool("master", false, "make this node master")
+	fMakeWorker = flag.Bool("worker", false, "make this node worker")
 	fMasterIp   = flag.String("master-ip", "127.0.0.1:8001", "ip address of any node to connnect")
 	fPort       = flag.Int("port", 8001, "ip address to run this node on. default is 8001.")
 )
 
 type Config struct {
 	MakeMaster bool
+	MakeWorker bool
 	MasterIp   string
 	Port       int
+}
+
+func (config *Config) IsStandalone() bool {
+	return !config.MakeMaster && !config.MakeWorker
+}
+
+func (config *Config) IsMaster() bool {
+	return config.MakeMaster
+}
+
+func (config *Config) IsWorker() bool {
+	return config.MakeWorker
 }
 
 func ConfigFromFlags() Config {
 	flag.Parse()
 	return Config{
 		MakeMaster: *fMakeMaster,
+		MakeWorker: *fMakeWorker,
 		MasterIp:   *fMasterIp,
 		Port:       *fPort,
 	}
