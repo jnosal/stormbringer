@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	CONNECTION_READLINE_DEADLINE = 30
+	CONNECTION_READLINE_DEADLINE = 60 * 5
 )
 
 type TCPServer struct {

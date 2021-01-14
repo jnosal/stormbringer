@@ -11,7 +11,8 @@ var (
 	fMakeMaster = flag.Bool("master", false, "make this node master")
 	fMakeWorker = flag.Bool("worker", false, "make this node worker")
 	fMasterIp   = flag.String("master-ip", "127.0.0.1:8001", "ip address of any node to connnect")
-	fPort       = flag.Int("port", 8001, "ip address to run this node on. default is 8001.")
+	fHost       = flag.String("host", "0.0.0.0", "host to run this node on. default is 0.0.0.0")
+	fPort       = flag.Int("port", 8001, "port number to run this node on. default is 8001.")
 )
 
 type Config struct {
@@ -19,6 +20,7 @@ type Config struct {
 	MakeWorker bool
 	MasterIp   string
 	Port       int
+	Host       string
 }
 
 func (config *Config) IsStandalone() bool {
@@ -40,6 +42,7 @@ func ConfigFromFlags() Config {
 		MakeWorker: *fMakeWorker,
 		MasterIp:   *fMasterIp,
 		Port:       *fPort,
+		Host:       *fHost,
 	}
 }
 

@@ -21,7 +21,7 @@ type Engine struct {
 }
 
 func (engine *Engine) startTCPServer() {
-	server := NewTCPServer(fmt.Sprintf(":%d", engine.config.Port))
+	server := NewTCPServer(fmt.Sprintf("%s:%d", engine.config.Host, engine.config.Port))
 	server.Start()
 }
 

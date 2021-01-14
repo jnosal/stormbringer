@@ -24,7 +24,21 @@ func (client *TCPClient) Connect() {
 
 	log.Printf("Conected to TCP server: %s", client.address)
 
+	// TODO: handle gently
+	//err = connection.(*net.TCPConn).SetKeepAlive(true)
+	//if err != nil {
+	//	log.Println(err)
+	//	return
+	//}
+	//
+	//err = connection.(*net.TCPConn).SetKeepAlivePeriod(time.Second * 3)
+	//if err != nil {
+	//	log.Println(err)
+	//	return
+	//}
+
 	client.connection = connection
+
 }
 
 func (client *TCPClient) Close() {
@@ -37,11 +51,13 @@ func (client *TCPClient) Send(message map[string]interface{}) {
 	_, err := client.connection.Write(tcpMessage.payload)
 	if err != nil {
 		log.Printf(err.Error())
+		// TODO: possibly reconnect? or return error and then reconnect
 		return
 	}
 	_, err = client.connection.Write([]byte("\n"))
 	if err != nil {
 		log.Printf(err.Error())
+		// TODO: possibly reconnect? or return error and then reconnect
 		return
 	}
 }
