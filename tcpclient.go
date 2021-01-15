@@ -1,6 +1,8 @@
 package stormbringer
 
 import (
+	"bufio"
+	"errors"
 	"log"
 	"net"
 	"time"
@@ -13,6 +15,8 @@ const (
 type TCPClient struct {
 	address    string
 	connection net.Conn
+	writer     *bufio.Writer
+	connected  bool
 }
 
 func (client *TCPClient) Connect() {
@@ -37,7 +41,9 @@ func (client *TCPClient) Connect() {
 	//	return
 	//}
 
+	client.connected = true
 	client.connection = connection
+	client.writer = bufio.NewWriter(connection)
 
 }
 
@@ -45,21 +51,25 @@ func (client *TCPClient) Close() {
 	_ = client.connection.Close()
 }
 
-func (client *TCPClient) Send(message map[string]interface{}) {
+func (client *TCPClient) Send(message map[string]interface{}) error {
+	// TODO: possibly lock/umlock
+	if !client.connected {
+		return errors.New("client is not connected")
+	}
 	tcpMessage := NewTCPMessageFromMap(message)
 
-	_, err := client.connection.Write(tcpMessage.payload)
-	if err != nil {
-		log.Printf(err.Error())
-		// TODO: possibly reconnect? or return error and then reconnect
-		return
+	if _, err := client.writer.Write(tcpMessage.payload); err != nil {
+		return err
 	}
-	_, err = client.connection.Write([]byte("\n"))
-	if err != nil {
-		log.Printf(err.Error())
-		// TODO: possibly reconnect? or return error and then reconnect
-		return
+
+	if _, err := client.writer.WriteString("\r\n"); err != nil {
+		return err
 	}
+
+	if err := client.writer.Flush(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func NewTCPClient(address string) (client *TCPClient) {

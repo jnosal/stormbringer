@@ -2,13 +2,15 @@ package stormbringer
 
 import (
 	"bufio"
+	"io"
 	"log"
 	"net"
 	"time"
 )
 
 const (
-	CONNECTION_READLINE_DEADLINE = 60 * 5
+	CONNECTION_READ_WRITE_TIMEOUT = 60 * 5
+	MAX_LINE_BYTES                = 1024
 )
 
 type TCPServer struct {
@@ -17,8 +19,9 @@ type TCPServer struct {
 	listener net.Listener
 }
 
-func increaseDeadline(conn net.Conn) {
-	if err := conn.SetReadDeadline(time.Now().Add(time.Second * CONNECTION_READLINE_DEADLINE)); err != nil {
+func resetReadDeadline(conn net.Conn) {
+	err := conn.SetReadDeadline(time.Now().Add(time.Second * CONNECTION_READ_WRITE_TIMEOUT))
+	if err != nil {
 		log.Println("Cannot increase read deadline")
 	}
 }
@@ -32,26 +35,41 @@ func (server *TCPServer) handleMessages() {
 }
 
 func (server *TCPServer) handleConnection(conn net.Conn) {
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+		log.Printf("Connection from %v closed", conn.RemoteAddr())
+	}()
 	log.Printf("Got new TCP connection: %v", conn.RemoteAddr())
+	done := make(chan struct{})
 
-	increaseDeadline(conn)
-	reader := bufio.NewReader(conn)
-	scanner := bufio.NewScanner(reader)
+	// time out in CONNECTION_READ_WRITE_TIMEOUT seconds from now
+	// if not data is received
+	resetReadDeadline(conn)
 
-	for {
-		scanned := scanner.Scan()
-		if !scanned {
-			if err := scanner.Err(); err != nil {
-				log.Printf("%v(%v)", err, conn.RemoteAddr())
-			}
-			break
+	go func() {
+		reader := &io.LimitedReader{
+			R: conn,
+			N: MAX_LINE_BYTES,
 		}
-		server.messages <- TCPMessage{scanner.Bytes(), conn}
-		increaseDeadline(conn)
-	}
+		scanner := bufio.NewScanner(reader)
+		for {
+			scanned := scanner.Scan()
+			if !scanned {
+				if err := scanner.Err(); err != nil {
+					log.Printf("%v(%v)", err, conn.RemoteAddr())
+				}
+				break
+			}
+			server.messages <- TCPMessage{scanner.Bytes(), conn}
 
-	log.Printf("Connection from %v closed", conn.RemoteAddr())
+			// reset number of bytes remaining in LimitReader
+			reader.N = MAX_LINE_BYTES
+			// reset read deadline
+			resetReadDeadline(conn)
+		}
+		done <- struct{}{}
+	}()
+	<-done
 }
 
 func (server *TCPServer) Start() {
