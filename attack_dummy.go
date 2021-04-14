@@ -1,8 +1,8 @@
 package stormbringer
 
 import (
-    "log"
-    "time"
+	"log"
+	"time"
 )
 
 type DummyAttack struct{}
@@ -24,7 +24,6 @@ func (a *DummyAttack) BeforeRun(c Config) error {
 	log.Println("before run")
 	return nil
 }
-
 
 func (a *DummyAttack) AfterRun(c Config) error {
 	log.Println("after run")

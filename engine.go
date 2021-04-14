@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 const (
@@ -25,7 +26,8 @@ type Engine struct {
 	config Config
 	state  string
 	wg     sync.WaitGroup
-	chDone chan struct{}
+	chDone chan bool
+	chNext chan bool
 }
 
 func (engine *Engine) startMaster() {
@@ -38,10 +40,23 @@ func (engine *Engine) startWorker() {
 	client.Connect()
 }
 
-func (engine *Engine) doAttack(config Config, attack Attack) {
+func (engine *Engine) scheduleAttacks(config Config, attack Attack) {
 	if v, ok := attack.(BeforeRunner); ok {
 		if err := v.BeforeRun(config); err != nil {
 			log.Printf("BeforeRun failed:%v\n", err)
+		}
+	}
+
+	limiter := time.Tick(time.Millisecond * 100)
+
+	for {
+		select {
+		case <-engine.chDone:
+			log.Print("Stopping...")
+			return
+		default:
+			<-limiter
+			go attack.Do()
 		}
 	}
 	if v, ok := attack.(AfterRunner); ok {
@@ -57,11 +72,12 @@ func Run(config Config, attack Attack) {
 	engine := Engine{
 		state:  STATE_INITIAL,
 		config: config,
-		chDone: make(chan struct{}),
+		chDone: make(chan bool),
+		chNext: make(chan bool),
 	}
 
 	if engine.config.IsStandalone() {
-	    engine.doAttack(config, attack)
+		engine.scheduleAttacks(config, attack)
 	}
 
 	if engine.config.IsMaster() {

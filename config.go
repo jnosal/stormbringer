@@ -13,6 +13,7 @@ var (
 	fMasterIp   = flag.String("master-ip", "127.0.0.1:8001", "ip address of any node to connnect")
 	fHost       = flag.String("host", "0.0.0.0", "host to run this node on. default is 0.0.0.0")
 	fPort       = flag.Int("port", 8001, "port number to run this node on. default is 8001.")
+	fRps        = flag.Int("rps", 10, "requests per second")
 )
 
 type Config struct {
@@ -21,6 +22,7 @@ type Config struct {
 	MasterIp   string
 	Port       int
 	Host       string
+	Rps        int
 }
 
 func (config *Config) IsStandalone() bool {
@@ -43,6 +45,7 @@ func ConfigFromFlags() Config {
 		MasterIp:   *fMasterIp,
 		Port:       *fPort,
 		Host:       *fHost,
+		Rps:        *fRps,
 	}
 }
 
