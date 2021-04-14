@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	client := stormbringer.NewTCPClient("localhost:8001")
+	client := stormbringer.NewTCPClient("127.0.0.1:8001")
 	client.Connect()
 	message := map[string]interface{}{"asd": 2, "bsd": "trhee"}
 	times := []int{1, 2, 3, 4, 5, 6}
