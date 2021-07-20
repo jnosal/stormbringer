@@ -51,17 +51,9 @@ func (engine *Engine) scheduleAttacks(config Config, attack Attack) {
 
 	for {
 		select {
-		case <-engine.chDone:
-			log.Print("Stopping...")
-			return
 		default:
 			<-limiter
 			go attack.Do()
-		}
-	}
-	if v, ok := attack.(AfterRunner); ok {
-		if err := v.AfterRun(config); err != nil {
-			log.Printf("AfterRun failed:%v\n", err)
 		}
 	}
 }
@@ -77,7 +69,7 @@ func Run(config Config, attack Attack) {
 	}
 
 	if engine.config.IsStandalone() {
-		engine.scheduleAttacks(config, attack)
+		go engine.scheduleAttacks(config, attack)
 	}
 
 	if engine.config.IsMaster() {
@@ -91,10 +83,19 @@ func Run(config Config, attack Attack) {
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	select {
-	case sig := <-sigChan:
-		log.Printf("Received %s. Stopping", sig)
-		return
-	}
+    go func() {
+        select {
+        case sig := <-sigChan:
+            log.Printf("Received %s. Stopping", sig)
+            if v, ok := attack.(AfterRunner); ok {
+                if err := v.AfterRun(config); err != nil {
+                    log.Printf("AfterRun failed:%v\n", err)
+                }
+            }
+            engine.chDone <- true
+            return
+        }
+    }()
+	<-engine.chDone
 
 }

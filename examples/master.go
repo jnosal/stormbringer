@@ -6,5 +6,5 @@ import (
 
 func main() {
 	config := stormbringer.ConfigFromFlags()
-	stormbringer.Run(config)
+	stormbringer.Run(config, new(stormbringer.DummyAttack))
 }
