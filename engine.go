@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -23,26 +22,29 @@ type AfterRunner interface {
 }
 
 type Engine struct {
-	config Config
-	state  string
-	wg     sync.WaitGroup
-	chDone chan bool
-	chNext chan bool
+	config    Config
+	state     string
+	tcpServer *TCPServer
+	tcpClient *TCPClient
+	chDone    chan bool
+	chNext    chan bool
 }
 
 func (engine *Engine) startMaster() {
 	server := NewTCPServer(fmt.Sprintf("%s:%d", engine.config.Host, engine.config.Port))
+	engine.tcpServer = server
 	server.Start()
 }
 
 func (engine *Engine) startWorker() {
 	client := NewTCPClient(engine.config.MasterIp)
+	engine.tcpClient = client
 	client.Connect()
 }
 
-func (engine *Engine) scheduleAttacks(config Config, attack Attack) {
+func (engine *Engine) scheduleAttacks(attack Attack) {
 	if v, ok := attack.(BeforeRunner); ok {
-		if err := v.BeforeRun(config); err != nil {
+		if err := v.BeforeRun(engine.config); err != nil {
 			log.Printf("BeforeRun failed:%v\n", err)
 		}
 	}
@@ -58,6 +60,22 @@ func (engine *Engine) scheduleAttacks(config Config, attack Attack) {
 	}
 }
 
+func (engine *Engine) Stop(attack Attack) {
+	if v, ok := attack.(AfterRunner); ok {
+		if err := v.AfterRun(engine.config); err != nil {
+			log.Printf("AfterRun failed:%v\n", err)
+		}
+	}
+
+	if engine.config.IsMaster() && engine.tcpServer != nil {
+		engine.tcpServer.Stop()
+	}
+
+	if engine.config.IsWorker() && engine.tcpClient != nil {
+		engine.tcpClient.Close()
+	}
+}
+
 func Run(config Config, attack Attack) {
 	log.Printf("Starting engine using: %+v", config)
 
@@ -69,7 +87,7 @@ func Run(config Config, attack Attack) {
 	}
 
 	if engine.config.IsStandalone() {
-		go engine.scheduleAttacks(config, attack)
+		go engine.scheduleAttacks(attack)
 	}
 
 	if engine.config.IsMaster() {
@@ -83,19 +101,15 @@ func Run(config Config, attack Attack) {
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-    go func() {
-        select {
-        case sig := <-sigChan:
-            log.Printf("Received %s. Stopping", sig)
-            if v, ok := attack.(AfterRunner); ok {
-                if err := v.AfterRun(config); err != nil {
-                    log.Printf("AfterRun failed:%v\n", err)
-                }
-            }
-            engine.chDone <- true
-            return
-        }
-    }()
+	go func() {
+		select {
+		case sig := <-sigChan:
+			log.Printf("Received %s. Stopping", sig)
+			engine.Stop(attack)
+			engine.chDone <- true
+			return
+		}
+	}()
 	<-engine.chDone
 
 }

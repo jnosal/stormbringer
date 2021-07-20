@@ -17,6 +17,7 @@ type TCPServer struct {
 	address  string
 	messages chan TCPMessage
 	listener net.Listener
+	chStop   chan interface{}
 }
 
 func resetReadDeadline(conn net.Conn) {
@@ -97,7 +98,14 @@ func (server *TCPServer) Start() {
 		conn, err := listener.Accept()
 
 		if err != nil {
-			log.Print(err.Error())
+			select {
+			case <-server.chStop:
+				return
+			default:
+				log.Print(err.Error())
+				break
+			}
+
 			continue
 		}
 
@@ -107,6 +115,7 @@ func (server *TCPServer) Start() {
 
 func (server *TCPServer) Stop() {
 	log.Printf("Shutting down TCP server")
+	close(server.chStop) // to tell server not to accept connections from listener
 	server.listener.Close()
 }
 
@@ -114,6 +123,7 @@ func NewTCPServer(address string) (server *TCPServer) {
 	server = &TCPServer{
 		address:  address,
 		messages: make(chan TCPMessage),
+		chStop:   make(chan interface{}),
 	}
 
 	return
